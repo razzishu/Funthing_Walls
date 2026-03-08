@@ -1,6 +1,6 @@
 # 🎨 Funthing Walls
 
-An advanced, open-source Android Wallpaper Engine built with Kotlin and Material Design 3.
+An advanced, open-source Android Wallpaper Engine built with Kotlin and Material Design 3. 
 
 Funthing Walls goes beyond static images by featuring a smart-cropping algorithm for dual-screen pairings, a Live Video wallpaper engine that dynamically extracts Material You colors, and a background Ghost Worker for automated aesthetic shifts.
 
@@ -21,9 +21,15 @@ Funthing Walls goes beyond static images by featuring a smart-cropping algorithm
 ## 🚀 How to Build
 1. Clone this repository: `git clone https://github.com/razzishu/FunthingWalls.git`
 2. Open the project in **Android Studio**.
-3. Build and run!
-   *Note: You will need to input your own free Pexels API key inside the app's Settings menu to fetch online wallpapers.*
+3. Build and run! 
+*Note: You will need to input your own free Pexels API key inside the app's Settings menu to fetch online wallpapers.*
+
+## 📜 License
+This project is licensed under the **GNU General Public License v3.0**. 
+
+Under this license, you are free to modify and distribute the software, provided that any derivative works are also licensed under the GPLv3. This ensures the engine remains free and open-source for the entire community. See the [LICENSE](LICENSE) file for the full text.
 
 ## 📬 Contact & Support
 * **Developer:** [@razzishu](https://github.com/razzishu)
 * **Telegram:** [@Razz_ishu](https://t.me/Razz_ishu)
+* 
