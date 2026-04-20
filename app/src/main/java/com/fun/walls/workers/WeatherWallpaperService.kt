@@ -39,7 +39,6 @@ class WeatherWallpaperService : WallpaperService() {
         private var lastHour = -1
         private var isFirstUpdate = true
 
-        // --- OPTIMIZATION 1: Zero-Allocation Time Keeping ---
         private val calendar = Calendar.getInstance()
         private var lastTimeCheckMillis = 0L
 
@@ -74,7 +73,6 @@ class WeatherWallpaperService : WallpaperService() {
         private var currentTemp = "--°C"
         private var currentLocation = "Syncing..."
 
-        // --- PAINTS ---
         private val skyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val cloudPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val rainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
@@ -99,7 +97,6 @@ class WeatherWallpaperService : WallpaperService() {
             textAlign = Paint.Align.RIGHT; setShadowLayer(6f, 0f, 3f, Color.BLACK)
         }
 
-        // --- PHYSICS POOLS ---
         private val clouds = Array(15) { Cloud() }
         private val raindrops = Array(350) { RainDrop() }
         private val hailDrops = Array(50) { HailDrop() }
@@ -114,7 +111,6 @@ class WeatherWallpaperService : WallpaperService() {
 
         private val frameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
-                // OPTIMIZATION 3: Absolute Visibility Guard
                 if (isVisible) {
                     drawFrame()
                     Choreographer.getInstance().postFrameCallback(this)
@@ -124,7 +120,6 @@ class WeatherWallpaperService : WallpaperService() {
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
-
             sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
@@ -254,7 +249,6 @@ class WeatherWallpaperService : WallpaperService() {
         private fun blendColor(current: Int, target: Int): Int {
             if (current == target) return target
             val blendFactor = 0.015f
-
             fun step(c: Int, t: Int): Int {
                 val diff = t - c
                 if (diff == 0) return t
@@ -265,7 +259,6 @@ class WeatherWallpaperService : WallpaperService() {
                     else -> stepAmount.toInt()
                 }
             }
-
             return Color.argb(
                 step(Color.alpha(current), Color.alpha(target)),
                 step(Color.red(current), Color.red(target)),
@@ -291,7 +284,6 @@ class WeatherWallpaperService : WallpaperService() {
             super.onDestroy()
             Choreographer.getInstance().removeFrameCallback(frameCallback)
             sensorManager.unregisterListener(this)
-
             if (!isPreview) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
@@ -307,7 +299,6 @@ class WeatherWallpaperService : WallpaperService() {
             this.isVisible = visible
             if (visible) {
                 Choreographer.getInstance().postFrameCallback(frameCallback)
-                // OPTIMIZATION 2: Changed to SENSOR_DELAY_UI. Uses massive amounts of less battery while remaining smooth!
                 rotationSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
             } else {
                 Choreographer.getInstance().removeFrameCallback(frameCallback)
@@ -316,14 +307,12 @@ class WeatherWallpaperService : WallpaperService() {
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
-            if (!isVisible) return // Extra guard
-
+            if (!isVisible) return
             if (event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
                 val rotationMatrix = FloatArray(9)
                 SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
                 val orientationValues = FloatArray(3)
                 SensorManager.getOrientation(rotationMatrix, orientationValues)
-
                 targetParallaxX = (orientationValues[2] * -180f)
                 targetParallaxY = (orientationValues[1] * -180f)
             }
@@ -340,7 +329,6 @@ class WeatherWallpaperService : WallpaperService() {
             shootingStars.forEach { it.reset(w, h) }
             hailDrops.forEach { it.reset(w) }
             glassDrops.forEach { it.active = false }
-
             birds.forEach { it.reset(w, h, initialSpawn = true) }
             fireflies.forEach { it.reset(w, h, initialSpawn = true) }
         }
@@ -359,9 +347,8 @@ class WeatherWallpaperService : WallpaperService() {
                     currentParallaxX += (targetParallaxX - currentParallaxX) * 0.1f
                     currentParallaxY += (targetParallaxY - currentParallaxY) * 0.1f
 
-                    // --- OPTIMIZATION 1 IMPLEMENTATION: Throttled Time Check ---
                     val now = System.currentTimeMillis()
-                    if (now - lastTimeCheckMillis > 60000) { // Only sync Calendar once a minute!
+                    if (now - lastTimeCheckMillis > 60000) {
                         calendar.timeInMillis = now
                         lastTimeCheckMillis = now
                     }
@@ -396,11 +383,9 @@ class WeatherWallpaperService : WallpaperService() {
                             val progress = (floatHour - 6f) / 12f
                             val sunX = (w * progress) + (currentParallaxX * 0.2f)
                             val sunY = (h * 0.5f - sin(progress * PI.toFloat()) * (h * 0.35f)) + (currentParallaxY * 0.2f)
-
                             val sunPulse = sin(time * 2f) * 15f
                             sunPaint.shader = RadialGradient(sunX, sunY, 180f + sunPulse, Color.argb(celestialAlpha, 255, 235, 150), Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(sunX, sunY, 190f + sunPulse, sunPaint)
-
                             sunPaint.shader = RadialGradient(sunX, sunY, 60f, Color.argb(celestialAlpha, 255, 255, 255), Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(sunX, sunY, 60f, sunPaint)
                         } else {
@@ -415,7 +400,7 @@ class WeatherWallpaperService : WallpaperService() {
                         }
                     }
 
-                    // --- 3. THE STRICT ECOSYSTEM LOGIC ---
+                    // 3. ECOSYSTEM
                     val isRaining = currentRainIntensity > 0.05f || currentCondition in listOf("Snow", "Blizzard", "Hail", "Thunderstorm")
 
                     if (isDay && !isRaining && currentCloudCover < 0.7f) {
@@ -425,14 +410,11 @@ class WeatherWallpaperService : WallpaperService() {
                             birds.forEach { b ->
                                 b.x += b.speed
                                 b.y += sin(time + b.offset) * 0.6f
-
                                 val drawX = b.x + (currentParallaxX * 0.6f)
                                 val drawY = b.y + (currentParallaxY * 0.6f)
-
                                 val wingFlap = sin(time * 10f + b.offset) * b.size * 0.8f
                                 canvas.drawLine(drawX, drawY, drawX - b.size * 1.5f, drawY - b.size * 0.5f - wingFlap, birdPaint)
                                 canvas.drawLine(drawX, drawY, drawX - b.size * 1.5f, drawY + b.size * 0.5f - wingFlap, birdPaint)
-
                                 if (b.x > w + 100f) b.reset(w, h, initialSpawn = false)
                             }
                         }
@@ -440,22 +422,17 @@ class WeatherWallpaperService : WallpaperService() {
 
                     if (!isDay && !isRaining) {
                         val fireflyAlphaFactor = (1f - currentCloudCover).coerceIn(0.2f, 1f)
-
                         fireflies.forEach { f ->
                             f.x += sin(time + f.phase) * 1.5f
                             f.y -= f.speed
-
                             val drawX = f.x + (currentParallaxX * 0.7f)
                             val drawY = f.y + (currentParallaxY * 0.7f)
                             val pulse = (sin(time * 3f + f.phase) + 1f) / 2f
-
                             val alpha = (220 * pulse * fireflyAlphaFactor).toInt()
                             fireflyCorePaint.color = Color.argb(alpha, 150, 255, 100)
                             fireflyGlowPaint.shader = RadialGradient(drawX, drawY, f.size * 5f, Color.argb((alpha * 0.3f).toInt(), 100, 255, 50), Color.TRANSPARENT, Shader.TileMode.CLAMP)
-
                             canvas.drawCircle(drawX, drawY, f.size * 5f, fireflyGlowPaint)
                             canvas.drawCircle(drawX, drawY, f.size, fireflyCorePaint)
-
                             if (f.y < h * 0.2f) f.reset(w, h, initialSpawn = false)
                         }
                     }
@@ -468,7 +445,6 @@ class WeatherWallpaperService : WallpaperService() {
                             starPaint.color = Color.argb((finalStarAlpha * twinkle).toInt(), 255, 255, 255)
                             canvas.drawCircle(s.x + (currentParallaxX * 0.1f), s.y + (currentParallaxY * 0.1f), s.size, starPaint)
                         }
-
                         shootingStars.forEach { ss ->
                             if (ss.active) {
                                 ss.x -= ss.speed
@@ -496,26 +472,24 @@ class WeatherWallpaperService : WallpaperService() {
                         val targetY = if (currentCondition == "Fog") h * 0.7f else c.baseY
                         c.y += (targetY - c.y) * 0.02f
                         c.x += (currentWindSpeed * c.z * windDirectionX)
-
                         for (puff in c.puffs) {
                             val puffX = c.x + puff.dx + (currentParallaxX * c.z * 0.4f)
                             val puffY = c.y + puff.dy + (currentParallaxY * c.z * 0.4f)
                             cloudPaint.shader = RadialGradient(puffX, puffY, puff.radius, currentCloudColor, Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(puffX, puffY, puff.radius, cloudPaint)
                         }
-
                         if (windDirectionX > 0 && c.x - 400f > w) c.reset(w, h, false, windDirectionX)
                         else if (windDirectionX < 0 && c.x + 400f < 0) c.reset(w, h, false, windDirectionX)
                     }
 
-                    // --- EXTRA MAGIC: VOLUMETRIC FOG LAYER ---
+                    // 6. VOLUMETRIC FOG
                     if (currentHazeAlpha > 0.05f) {
                         val fogColor = Color.argb((currentHazeAlpha * 200).toInt(), 220, 220, 230)
                         fogPaint.shader = LinearGradient(0f, h * 0.6f, 0f, h, Color.TRANSPARENT, fogColor, Shader.TileMode.CLAMP)
                         canvas.drawRect(0f, h * 0.6f, w, h, fogPaint)
                     }
 
-                    // 6. THUNDERSTORM LIGHTNING
+                    // 7. LIGHTNING
                     if (currentCondition == "Thunderstorm" || currentCondition == "Hail") {
                         if (Random.nextFloat() > 0.985f && lightningAlpha <= 0) generateLightning(w, h)
                         if (lightningAlpha > 0) {
@@ -526,7 +500,7 @@ class WeatherWallpaperService : WallpaperService() {
                         }
                     }
 
-                    // 7. VECTOR RAIN, BLIZZARD, & HAIL
+                    // 8. RAIN, BLIZZARD, HAIL
                     if (currentCondition == "Hail") {
                         rainPaint.color = Color.argb(240, 240, 240, 255)
                         hailDrops.forEach { hDrop ->
@@ -535,7 +509,6 @@ class WeatherWallpaperService : WallpaperService() {
                             val drawX = hDrop.x + (currentParallaxX * 1.2f)
                             val drawY = hDrop.y + (currentParallaxY * 1.2f)
                             canvas.drawCircle(drawX, drawY, hDrop.size, rainPaint)
-
                             if (hDrop.y > h - 50f && !hDrop.bounced) {
                                 hDrop.speed = -hDrop.speed * 0.4f
                                 hDrop.bounced = true
@@ -549,7 +522,6 @@ class WeatherWallpaperService : WallpaperService() {
                         val activeRain = (raindrops.size * (if (currentCondition == "Snow") 0.5f else if(currentCondition == "Blizzard") 1.0f else currentRainIntensity)).toInt()
                         repeat(activeRain) { i ->
                             val r = raindrops[i]
-
                             if (currentCondition == "Snow" || currentCondition == "Blizzard") {
                                 val snowAlpha = if (currentCondition == "Blizzard") 255 else 200
                                 rainPaint.color = Color.argb((snowAlpha * r.z).toInt(), 255, 255, 255)
@@ -566,11 +538,9 @@ class WeatherWallpaperService : WallpaperService() {
                                 r.y += fallDy
                                 rainPaint.strokeWidth = 6f * r.z
                                 val streakLength = if (currentCondition == "Heavy Rain") 2.5f else 1.5f
-
                                 val drawX = r.x + (currentParallaxX * r.z * 1.5f)
                                 val drawY = r.y + (currentParallaxY * r.z * 1.5f)
                                 canvas.drawLine(drawX, drawY, drawX - (windDx * streakLength), drawY - (fallDy * streakLength), rainPaint)
-
                                 if (r.y > h && r.z > 0.7f && currentCondition != "Drizzle") {
                                     splashPaint.color = Color.argb(120, 200, 220, 255)
                                     canvas.drawOval(drawX - 20f, h - 10f, drawX + 20f, h + 8f, splashPaint)
@@ -599,12 +569,10 @@ class WeatherWallpaperService : WallpaperService() {
                         }
                     }
 
-                    // --- 8. SLEEK CINEMATIC HUD DASHBOARD ---
+                    // 9. HUD DASHBOARD
                     val textX = w - 50f
                     val textY = 180f
-
                     val hudText = "$currentTemp  •  $currentCondition"
-
                     canvas.drawText(hudText, textX, textY, textTempPaint)
                     canvas.drawText(currentLocation, textX, textY + 35f, textLocPaint)
                 }
@@ -613,74 +581,80 @@ class WeatherWallpaperService : WallpaperService() {
             }
         }
     }
+}
 
-    // --- LIFE ECOSYSTEM CLASSES ---
-    class Bird {
-        var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var offset = 0f
-        fun reset(w: Float, h: Float, initialSpawn: Boolean) {
-            x = if (initialSpawn) Random.nextFloat() * w else -Random.nextFloat() * 300f - 50f
-            y = Random.nextFloat() * (h * 0.4f) + 100f
-            speed = Random.nextFloat() * 2.5f + 1.5f
-            size = Random.nextFloat() * 4f + 6f
-            offset = Random.nextFloat() * 10f
-        }
+// --- UTILITY CLASSES (Placed securely outside the main class!) ---
+class Bird {
+    var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var offset = 0f
+    fun reset(w: Float, h: Float, initialSpawn: Boolean) {
+        x = if (initialSpawn) Random.nextFloat() * w else -Random.nextFloat() * 300f - 50f
+        y = Random.nextFloat() * (h * 0.4f) + 100f
+        speed = Random.nextFloat() * 2.5f + 1.5f
+        size = Random.nextFloat() * 4f + 6f
+        offset = Random.nextFloat() * 10f
     }
+}
 
-    class Firefly {
-        var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var phase = 0f
-        fun reset(w: Float, h: Float, initialSpawn: Boolean) {
-            x = Random.nextFloat() * w
-            y = if (initialSpawn) Random.nextFloat() * h else h + Random.nextFloat() * 200f
-            speed = Random.nextFloat() * 1.5f + 0.5f
-            size = Random.nextFloat() * 3f + 2f
-            phase = Random.nextFloat() * 100f
-        }
+class Firefly {
+    var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var phase = 0f
+    fun reset(w: Float, h: Float, initialSpawn: Boolean) {
+        x = Random.nextFloat() * w
+        y = if (initialSpawn) Random.nextFloat() * h else h + Random.nextFloat() * 200f
+        speed = Random.nextFloat() * 1.5f + 0.5f
+        size = Random.nextFloat() * 3f + 2f
+        phase = Random.nextFloat() * 100f
     }
+}
 
-    class Star {
-        var x = 0f; var y = 0f; var size = 0f; var seed = 0f
-        fun reset(w: Float, h: Float) {
-            x = Random.nextFloat() * w; y = Random.nextFloat() * (h * 0.7f)
-            size = Random.nextFloat() * 4f + 1f; seed = Random.nextFloat() * 100f
-        }
+class Star {
+    var x = 0f; var y = 0f; var size = 0f; var seed = 0f
+    fun reset(w: Float, h: Float) {
+        x = Random.nextFloat() * w; y = Random.nextFloat() * (h * 0.7f)
+        size = Random.nextFloat() * 4f + 1f; seed = Random.nextFloat() * 100f
     }
-    class ShootingStar {
-        var x = 0f; var y = 0f; var speed = 0f; var alpha = 0; var active = false
-        fun reset(w: Float, h: Float) {
-            x = w * (0.5f + Random.nextFloat()); y = Random.nextFloat() * (h * 0.3f)
-            speed = Random.nextFloat() * 25f + 20f; alpha = 255
-        }
+}
+
+class ShootingStar {
+    var x = 0f; var y = 0f; var speed = 0f; var alpha = 0; var active = false
+    fun reset(w: Float, h: Float) {
+        x = w * (0.5f + Random.nextFloat()); y = Random.nextFloat() * (h * 0.3f)
+        speed = Random.nextFloat() * 25f + 20f; alpha = 255
     }
-    class CloudPuff(var dx: Float, var dy: Float, var radius: Float)
-    class Cloud {
-        var x = 0f; var y = 0f; var baseY = 0f; var z = 0f
-        val puffs = Array(8) { CloudPuff(Random.nextFloat() * 300f - 150f, Random.nextFloat() * 100f - 50f, Random.nextFloat() * 250f + 150f) }
-        fun reset(w: Float, h: Float, randomX: Boolean, windDirX: Float) {
-            x = if(randomX) Random.nextFloat() * w else if (windDirX > 0) -400f else w + 400f
-            baseY = Random.nextFloat() * (h * 0.4f); y = baseY; z = Random.nextFloat() * 0.8f + 0.2f
-        }
+}
+
+class CloudPuff(var dx: Float, var dy: Float, var radius: Float)
+
+class Cloud {
+    var x = 0f; var y = 0f; var baseY = 0f; var z = 0f
+    val puffs = Array(8) { CloudPuff(Random.nextFloat() * 300f - 150f, Random.nextFloat() * 100f - 50f, Random.nextFloat() * 250f + 150f) }
+    fun reset(w: Float, h: Float, randomX: Boolean, windDirX: Float) {
+        x = if(randomX) Random.nextFloat() * w else if (windDirX > 0) -400f else w + 400f
+        baseY = Random.nextFloat() * (h * 0.4f); y = baseY; z = Random.nextFloat() * 0.8f + 0.2f
     }
-    class RainDrop {
-        var x = 0f; var y = 0f; var speed = 0f; var z = 0f; var size = 0f; var seed = 0f
-        fun reset(w: Float) {
-            x = Random.nextFloat() * (w + 1000f) - 500f; y = Random.nextFloat() * -300f - 50f
-            speed = Random.nextFloat() * 8f + 5f; size = Random.nextFloat() * 4f + 2f
-            seed = Random.nextFloat() * 100f; z = Random.nextFloat() * 0.8f + 0.2f
-        }
+}
+
+class RainDrop {
+    var x = 0f; var y = 0f; var speed = 0f; var z = 0f; var size = 0f; var seed = 0f
+    fun reset(w: Float) {
+        x = Random.nextFloat() * (w + 1000f) - 500f; y = Random.nextFloat() * -300f - 50f
+        speed = Random.nextFloat() * 8f + 5f; size = Random.nextFloat() * 4f + 2f
+        seed = Random.nextFloat() * 100f; z = Random.nextFloat() * 0.8f + 0.2f
     }
-    class HailDrop {
-        var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var bounced = false
-        fun reset(w: Float) {
-            x = Random.nextFloat() * (w + 400f) - 200f; y = Random.nextFloat() * -300f - 50f
-            speed = Random.nextFloat() * 18f + 12f; size = Random.nextFloat() * 8f + 4f; bounced = false
-        }
+}
+
+class HailDrop {
+    var x = 0f; var y = 0f; var speed = 0f; var size = 0f; var bounced = false
+    fun reset(w: Float) {
+        x = Random.nextFloat() * (w + 400f) - 200f; y = Random.nextFloat() * -300f - 50f
+        speed = Random.nextFloat() * 18f + 12f; size = Random.nextFloat() * 8f + 4f; bounced = false
     }
-    class GlassDrop {`
-        var x = 0f; var y = 0f; var radius = 0f; var alpha = 0; var expansionRate = 0f; var active = false
-        fun spawn(w: Float, h: Float) {
-            x = Random.nextFloat() * w; y = Random.nextFloat() * h
-            radius = 0f; alpha = Random.nextInt(150, 220)
-            expansionRate = Random.nextFloat() * 1.8f + 0.5f; active = true
-        }
+}
+
+class GlassDrop {
+    var x = 0f; var y = 0f; var radius = 0f; var alpha = 0; var expansionRate = 0f; var active = false
+    fun spawn(w: Float, h: Float) {
+        x = Random.nextFloat() * w; y = Random.nextFloat() * h
+        radius = 0f; alpha = Random.nextInt(150, 220)
+        expansionRate = Random.nextFloat() * 1.8f + 0.5f; active = true
     }
 }
