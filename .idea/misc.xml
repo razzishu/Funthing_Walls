@@ -1,0 +1,24 @@
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="jbr-21" project-jdk-type="JavaSDK" />
+  <component name="StoredSessionsInfoStore">
+    <option name="sessions">
+      <list>
+        <SessionInfoState>
+          <option name="id" value="20260403-110003-57bee94a-5f84-424a-b802-245e0dfe190d" />
+          <option name="lastUpdateTimestamp" value="1775194203501" />
+          <option name="responseMode" value="Agent" />
+          <option name="title" value="New Agent Session" />
+          <option name="user" value="guest" />
+        </SessionInfoState>
+        <SessionInfoState>
+          <option name="id" value="20260403-110003-6c42495d-f4d9-40eb-aa4f-2d109509e252" />
+          <option name="lastUpdateTimestamp" value="1775194203580" />
+          <option name="responseMode" value="Agent" />
+          <option name="title" value="New Agent Session" />
+          <option name="user" value="rajeshootyaa@gmail.com" />
+        </SessionInfoState>
+      </list>
+    </option>
+  </component>
+</project>
