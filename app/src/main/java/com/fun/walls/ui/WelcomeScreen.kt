@@ -4,7 +4,9 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,14 +24,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.`fun`.walls.R
 
 @Composable
 fun WelcomeScreen(onFinishOnboarding: () -> Unit) {
@@ -77,11 +83,62 @@ fun WelcomeScreen(onFinishOnboarding: () -> Unit) {
 
                 Column(
                     modifier = Modifier.fillMaxSize().padding(32.dp),
-                    verticalArrangement = Arrangement.Bottom
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Animated Logo with Special Effect
+                    val infiniteTransition = rememberInfiniteTransition(label = "logo_anim")
+                    val scale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.05f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "scale"
+                    )
+                    val alpha by infiniteTransition.animateFloat(
+                        initialValue = 0.7f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha"
+                    )
+
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                    ) {
+                        // Background Glow
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFFFF007F).copy(alpha = 0.3f * alpha), Color.Transparent)
+                                    ),
+                                    CircleShape
+                                )
+                        )
+                        
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_logo_foreground),
+                            contentDescription = "App Logo",
+                            modifier = Modifier.size(100.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text("Welcome to", style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.7f))
-                    Text("FunThingWalls", style = MaterialTheme.typography.displayMedium, color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    Text("The Ultimate Customization Studio", style = MaterialTheme.typography.titleMedium, color = Color(0xFF6DD5FA), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    Text("FunThingWalls", style = MaterialTheme.typography.displayMedium, color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, textAlign = TextAlign.Center)
+                    Text("The Ultimate Customization Studio", style = MaterialTheme.typography.titleMedium, color = Color(0xFF6DD5FA), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
                 }
             }
 
