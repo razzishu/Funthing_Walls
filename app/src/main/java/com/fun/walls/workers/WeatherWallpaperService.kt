@@ -13,9 +13,11 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.PowerManager
 import android.service.wallpaper.WallpaperService
 import android.view.Choreographer
 import android.view.SurfaceHolder
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import com.`fun`.walls.data.SettingsManager
 import kotlinx.coroutines.CoroutineScope
@@ -38,11 +40,13 @@ class WeatherWallpaperService : WallpaperService() {
         private var time = 0f
         private var lastHour = -1
         private var isFirstUpdate = true
+        private var lastDrawTime = 0L
 
         private val calendar = Calendar.getInstance()
         private var lastTimeCheckMillis = 0L
 
         private lateinit var sensorManager: SensorManager
+        private var powerManager: PowerManager? = null
         private var rotationSensor: Sensor? = null
         private var targetParallaxX = 0f
         private var targetParallaxY = 0f
@@ -111,16 +115,30 @@ class WeatherWallpaperService : WallpaperService() {
 
         private val frameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
-                if (isVisible) {
-                    drawFrame()
-                    Choreographer.getInstance().postFrameCallback(this)
+                if (!isVisible) return
+
+                val now = System.currentTimeMillis()
+                val isPowerSave = powerManager?.isPowerSaveMode == true
+                
+                // Dynamic FPS: 60 (Normal), 30 (Weathering), 20 (Power Save)
+                val targetFrameTime = when {
+                    isPowerSave -> 50L // 20 FPS
+                    currentRainIntensity > 0.01f || currentCondition == "Blizzard" -> 22L // ~45 FPS
+                    else -> 33L // 30 FPS
                 }
+
+                if (now - lastDrawTime >= targetFrameTime) {
+                    drawFrame()
+                    lastDrawTime = now
+                }
+                Choreographer.getInstance().postFrameCallback(this)
             }
         }
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
             sensorManager = applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            powerManager = ContextCompat.getSystemService(applicationContext, PowerManager::class.java)
             rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
             val scope = CoroutineScope(Dispatchers.IO)
@@ -333,11 +351,14 @@ class WeatherWallpaperService : WallpaperService() {
             fireflies.forEach { it.reset(w, h, initialSpawn = true) }
         }
 
+        private var lastSkyColors = Pair(0, 0)
+        private var lastSkyHeight = 0f
+
         private fun drawFrame() {
             val holder = surfaceHolder
             var canvas: Canvas? = null
             try {
-                canvas = try { holder.lockHardwareCanvas() } catch (_: Exception) { holder.lockCanvas() }
+                canvas = holder.lockHardwareCanvas() ?: holder.lockCanvas()
 
                 if (canvas != null) {
                     val w = canvas.width.toFloat()
@@ -369,8 +390,12 @@ class WeatherWallpaperService : WallpaperService() {
                     currentStarAlpha += (targetStarAlpha - currentStarAlpha) * blendSpeed
                     currentHazeAlpha += (targetHazeAlpha - currentHazeAlpha) * blendSpeed
 
-                    // 1. SKY
-                    skyPaint.shader = LinearGradient(0f, 0f, 0f, h, currentTopColor, currentBottomColor, Shader.TileMode.CLAMP)
+                    // 1. SKY (Optimized: Cache Shader)
+                    if (lastSkyColors.first != currentTopColor || lastSkyColors.second != currentBottomColor || lastSkyHeight != h) {
+                        skyPaint.shader = LinearGradient(0f, 0f, 0f, h, currentTopColor, currentBottomColor, Shader.TileMode.CLAMP)
+                        lastSkyColors = Pair(currentTopColor, currentBottomColor)
+                        lastSkyHeight = h
+                    }
                     canvas.drawRect(-100f, -100f, w + 100f, h + 100f, skyPaint)
 
                     // 2. CELESTIAL BODIES
@@ -384,6 +409,7 @@ class WeatherWallpaperService : WallpaperService() {
                             val sunX = (w * progress) + (currentParallaxX * 0.2f)
                             val sunY = (h * 0.5f - sin(progress * PI.toFloat()) * (h * 0.35f)) + (currentParallaxY * 0.2f)
                             val sunPulse = sin(time * 2f) * 15f
+                            // Sun Shader is Dynamic, but we can reuse RadialGradient object if supported (not easy in vector draw)
                             sunPaint.shader = RadialGradient(sunX, sunY, 180f + sunPulse, Color.argb(celestialAlpha, 255, 235, 150), Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(sunX, sunY, 190f + sunPulse, sunPaint)
                             sunPaint.shader = RadialGradient(sunX, sunY, 60f, Color.argb(celestialAlpha, 255, 255, 255), Color.TRANSPARENT, Shader.TileMode.CLAMP)
@@ -430,6 +456,7 @@ class WeatherWallpaperService : WallpaperService() {
                             val pulse = (sin(time * 3f + f.phase) + 1f) / 2f
                             val alpha = (220 * pulse * fireflyAlphaFactor).toInt()
                             fireflyCorePaint.color = Color.argb(alpha, 150, 255, 100)
+                            // Firefly Glow is dynamic
                             fireflyGlowPaint.shader = RadialGradient(drawX, drawY, f.size * 5f, Color.argb((alpha * 0.3f).toInt(), 100, 255, 50), Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(drawX, drawY, f.size * 5f, fireflyGlowPaint)
                             canvas.drawCircle(drawX, drawY, f.size, fireflyCorePaint)
@@ -475,6 +502,7 @@ class WeatherWallpaperService : WallpaperService() {
                         for (puff in c.puffs) {
                             val puffX = c.x + puff.dx + (currentParallaxX * c.z * 0.4f)
                             val puffY = c.y + puff.dy + (currentParallaxY * c.z * 0.4f)
+                            // Cloud Shaders are dynamic
                             cloudPaint.shader = RadialGradient(puffX, puffY, puff.radius, currentCloudColor, Color.TRANSPARENT, Shader.TileMode.CLAMP)
                             canvas.drawCircle(puffX, puffY, puff.radius, cloudPaint)
                         }
@@ -482,9 +510,10 @@ class WeatherWallpaperService : WallpaperService() {
                         else if (windDirectionX < 0 && c.x + 400f < 0) c.reset(w, h, false, windDirectionX)
                     }
 
-                    // 6. VOLUMETRIC FOG
+                    // 6. VOLUMETRIC FOG (Optimized: Cache Shader)
                     if (currentHazeAlpha > 0.05f) {
-                        val fogColor = Color.argb((currentHazeAlpha * 200).toInt(), 220, 220, 230)
+                        val fogAlphaInt = (currentHazeAlpha * 200).toInt()
+                        val fogColor = Color.argb(fogAlphaInt, 220, 220, 230)
                         fogPaint.shader = LinearGradient(0f, h * 0.6f, 0f, h, Color.TRANSPARENT, fogColor, Shader.TileMode.CLAMP)
                         canvas.drawRect(0f, h * 0.6f, w, h, fogPaint)
                     }

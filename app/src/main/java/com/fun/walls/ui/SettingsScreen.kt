@@ -298,21 +298,19 @@ fun SettingsScreen(viewModel: WallpaperViewModel) {
 
                 AnimatedVisibility(visible = showAbout) {
                     Column(modifier = Modifier.padding(top = 16.dp)) {
-                        Text("Version 2.0.2 - The Atmosphere Update", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Version 2.0.3 - The Optimization Update", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("FunThingWalls is a next-generation Android Customization Studio built entirely in Jetpack Compose.", style = MaterialTheme.typography.bodyMedium)
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("What's New in 2.0:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("What's New in 2.0.3:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text("• Procedural Weather Engine: A hardware-accelerated 60FPS physics engine rendering live weather (Rain, Blizzard, Hail, Thunderstorms, Haze) using keyless Open-Meteo data.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                        Text("• Smart Auto-Changer: Seamlessly cycles your background from the Explore feed on a custom timer, automatically pausing when a local gallery image is applied.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                        Text("• Chameleon Audio Glass: Real-time screen-reading audio visualization that seamlessly reacts to your system's music.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                        Text("• Cinematic Time Sync: Mathematical color grading that dynamically matches the sun and moon arcs in your exact timezone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                        Text("• Advanced Matrix Editor: Independent zoom, pan, blur, dim, and grayscale controls for Lock and Home screens.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                        Text("• Secure Scoped Storage: Download and manage 4K assets directly in a dedicated 'My Studio' gallery without invasive device storage permissions.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
-                        Text("• Zero-Allocation Rendering: Heavily optimized object pooling for completely battery-friendly Live Wallpapers.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                        Text("• Deep Battery Optimization: Hardware-accelerated rendering now adapts to Power Save mode and reduces overhead when idle.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text("• Modern Blur Engine: Migrated from RenderScript to the highly efficient RenderEffect API for buttery smooth blurs.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                        Text("• FTW Branding: Redesigned the app logo with a sleek, minimalist 'FTW' look and neon glassmorphism.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                        Text("• UI Animation: Added a living 'breathing' effect to the logo on startup.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+                        Text("• Stability Fixes: Resolved multiple code warnings and improved API key validation logic.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
             }
@@ -441,7 +439,7 @@ fun AppAestheticHeader() {
                 modifier = Modifier.padding(top = 12.dp)
             ) {
                 Text(
-                    text = "v2.0.2",
+                    text = "v2.0.3",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.8f),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)

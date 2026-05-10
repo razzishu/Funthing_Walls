@@ -9,9 +9,11 @@ import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.media.AudioManager
+import android.os.PowerManager
 import android.service.wallpaper.WallpaperService
 import android.view.Choreographer
 import android.view.SurfaceHolder
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import com.`fun`.walls.data.SettingsManager
 import kotlinx.coroutines.CoroutineScope
@@ -31,12 +33,15 @@ class ChameleonWallpaperService : WallpaperService() {
     inner class ChameleonEngine : Engine() {
         private var isVisible = false
         private lateinit var audioManager: AudioManager
+        private var powerManager: PowerManager? = null
         private var time = 0f
+        private var lastDrawTime = 0L
 
         private var color1 = "#0F2027".toColorInt()
         private var color2 = "#203A43".toColorInt()
         private var color3 = "#2C5364".toColorInt()
         private var color4 = "#121212".toColorInt()
+        private var lastAppliedWidth = 0f
 
         private val paint1 = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
         private val paint2 = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
@@ -50,14 +55,32 @@ class ChameleonWallpaperService : WallpaperService() {
 
         private val frameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
-                drawFrame()
-                if (isVisible) Choreographer.getInstance().postFrameCallback(this)
+                if (!isVisible) return
+
+                val now = System.currentTimeMillis()
+                val isPlaying = audioManager.isMusicActive
+                val isPowerSave = powerManager?.isPowerSaveMode == true
+                
+                // Dynamic FPS: 60 (Normal/Music), 30 (Idle), 20 (Power Save)
+                val targetFrameTime = when {
+                    isPowerSave -> 50L // 20 FPS
+                    !isPlaying -> 33L   // 30 FPS
+                    else -> 16L        // 60 FPS
+                }
+
+                if (now - lastDrawTime >= targetFrameTime) {
+                    drawFrame(isPlaying)
+                    lastDrawTime = now
+                }
+                
+                Choreographer.getInstance().postFrameCallback(this)
             }
         }
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
             audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            powerManager = ContextCompat.getSystemService(applicationContext, PowerManager::class.java)
             extractSystemWallpaperColors()
         }
 
@@ -120,6 +143,11 @@ class ChameleonWallpaperService : WallpaperService() {
         }
 
         private fun setupGradients(w: Float) {
+            if (w <= 0f) return
+            // Optimization: Only recreate shaders if width or colors changed
+            if (lastAppliedWidth == w && paint1.shader != null) return
+            
+            lastAppliedWidth = w
             val radius = w * 1.2f
             paint1.shader = RadialGradient(0f, 0f, radius, color1, Color.TRANSPARENT, Shader.TileMode.CLAMP)
             paint2.shader = RadialGradient(0f, 0f, radius * 0.9f, color2, Color.TRANSPARENT, Shader.TileMode.CLAMP)
@@ -127,22 +155,20 @@ class ChameleonWallpaperService : WallpaperService() {
             paint4.shader = RadialGradient(0f, 0f, radius * 0.8f, color4, Color.TRANSPARENT, Shader.TileMode.CLAMP)
         }
 
-        private fun drawFrame() {
+        private fun drawFrame(isPlaying: Boolean = audioManager.isMusicActive) {
             val holder = surfaceHolder
             var canvas: Canvas? = null
             try {
-                // FIX: Use try-catch fallback for lockHardwareCanvas instead of SDK checks
-                canvas = try { holder.lockHardwareCanvas() } catch (_: Exception) { holder.lockCanvas() }
+                canvas = holder.lockHardwareCanvas() ?: holder.lockCanvas()
 
                 if (canvas != null) {
                     val w = canvas.width.toFloat()
                     val h = canvas.height.toFloat()
 
                     canvas.drawColor(manipulateColor(color1, 0.4f))
-                    val isPlaying = audioManager.isMusicActive
+                    
                     val speed = if (isPlaying) 0.035f else 0.003f
                     time += speed
-                    // FIX: Replaced Java Math.sin with Kotlin sin
                     val pulse = if (isPlaying) (sin(time * 3f) * 40f) else 0f
 
                     val cx = w / 2f
